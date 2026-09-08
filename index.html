@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MCP Navigator - Model Context Protocol 资源导航站</title>
+  <meta name="description" content="收录最全的 MCP 服务器资源导航，支持搜索和分类浏览" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            primary: { 50:'#eef2ff',100:'#e0e7ff',200:'#c7d2fe',300:'#a5b4fc',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca',800:'#3730a3',900:'#312e81' },
+            accent: { 50:'#fdf4ff',100:'#fae8ff',200:'#f5d0fe',300:'#f0abfc',400:'#e879f9',500:'#d946ef',600:'#c026d3',700:'#a21caf',800:'#86198f',900:'#701a75' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, sans-serif; }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 3px; }
+
+    /* Gradient text */
+    .gradient-text { background: linear-gradient(135deg, #6366f1, #d946ef); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    /* Card hover */
+    .mcp-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+    .mcp-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.12); }
+
+    /* Animations */
+    @keyframes fadeInUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+    @keyframes float { 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(-6px); } }
+    @keyframes pulse-glow { 0%,100%{ box-shadow:0 0 5px rgba(99,102,241,0.3); } 50%{ box-shadow:0 0 20px rgba(99,102,241,0.6); } }
+    @keyframes slideDown { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+
+    .animate-fadeInUp { animation: fadeInUp 0.5s ease forwards; }
+    .animate-fadeIn { animation: fadeIn 0.4s ease forwards; }
+    .animate-float { animation: float 3s ease-in-out infinite; }
+    .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+    /* Staggered children */
+    .stagger-children > *:nth-child(1) { animation-delay: 0.05s; }
+    .stagger-children > *:nth-child(2) { animation-delay: 0.1s; }
+    .stagger-children > *:nth-child(3) { animation-delay: 0.15s; }
+    .stagger-children > *:nth-child(4) { animation-delay: 0.2s; }
+    .stagger-children > *:nth-child(5) { animation-delay: 0.25s; }
+    .stagger-children > *:nth-child(6) { animation-delay: 0.3s; }
+    .stagger-children > *:nth-child(7) { animation-delay: 0.35s; }
+    .stagger-children > *:nth-child(8) { animation-delay: 0.4s; }
+
+    /* Tab underline */
+    .tab-btn { position: relative; }
+    .tab-btn.active::after { content:''; position:absolute; bottom:-2px; left:0; right:0; height:2px; background: linear-gradient(90deg,#6366f1,#d946ef); border-radius:2px; }
+
+    /* Theme toggle */
+    .theme-toggle { transition: background 0.3s; }
+
+    /* Search highlight */
+    mark { background: #fef08a; color: #1e1b4b; border-radius: 2px; padding: 0 2px; }
+
+    /* Mobile nav */
+    .mobile-menu { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+    .mobile-menu.open { max-height: 500px; }
+
+    /* Background grid pattern */
+    .bg-grid {
+      background-image: radial-gradient(circle, rgba(99,102,241,0.08) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    /* Code block */
+    .code-block { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+  </style>
+</head>
+
+<body class="bg-white dark:bg-[#0a0a0f] text-gray-900 dark:text-gray-100 transition-colors duration-300">
+
+  <!-- ========== HEADER / NAV ========== -->
+  <header class="sticky top-0 z-50 bg-white/80 dark:bg-[#0a0a0f]/80 backdrop-blur-xl border-b border-gray-200 dark:border-gray-800">
+    <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <a href="#" class="flex items-center gap-2 group" aria-label="MCP Navigator 首页">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold text-lg group-hover:scale-110 transition-transform">M</div>
+        <span class="font-bold text-lg tracking-tight hidden sm:block">MCP <span class="text-primary-600 dark:text-primary-400">Navigator</span></span>
+      </a>
+
+      <!-- Desktop Nav -->
+      <div class="hidden md:flex items-center gap-8 text-sm font-medium">
+        <a href="#about" class="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">什么是 MCP</a>
+        <a href="#servers" class="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">服务器列表</a>
+        <a href="#quickstart" class="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">快速开始</a>
+        <a href="#contribute" class="text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">贡献指南</a>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- GitHub Star -->
+        <a href="https://github.com" target="_blank" rel="noopener" class="hidden sm:flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1.5 hover:border-primary-400 dark:hover:border-primary-400">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+          GitHub
+        </a>
+
+        <!-- Theme Toggle -->
+        <button id="themeToggle" class="theme-toggle w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-primary-100 dark:hover:bg-primary-900/30 transition-colors" aria-label="切换深色/浅色主题">
+          <svg id="sunIcon" class="w-4.5 h-4.5 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg id="moonIcon" class="w-4.5 h-4.5 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        </button>
+
+        <!-- Mobile menu button -->
+        <button id="mobileMenuBtn" class="md:hidden w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center" aria-label="打开菜单" aria-expanded="false">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="mobile-menu md:hidden border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0a0a0f]">
+      <div class="px-4 py-3 space-y-2">
+        <a href="#about" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary-600">什么是 MCP</a>
+        <a href="#servers" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary-600">服务器列表</a>
+        <a href="#quickstart" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary-600">快速开始</a>
+        <a href="#contribute" class="block py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-primary-600">贡献指南</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========== HERO ========== -->
+  <section class="relative overflow-hidden bg-grid">
+    <!-- Decorative blobs -->
+    <div class="absolute top-20 left-10 w-72 h-72 bg-primary-500/10 rounded-full blur-3xl animate-float"></div>
+    <div class="absolute bottom-10 right-10 w-96 h-96 bg-accent-500/10 rounded-full blur-3xl animate-float" style="animation-delay: 1.5s;"></div>
+
+    <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 text-center">
+      <!-- Badge -->
+      <div class="inline-flex items-center gap-2 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-sm font-medium px-4 py-1.5 rounded-full border border-primary-200 dark:border-primary-800 mb-8 animate-fadeIn">
+        <span class="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></span>
+        Model Context Protocol — 开放标准 · 无限可能
+      </div>
+
+      <h1 class="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight mb-6 animate-fadeInUp" style="animation-delay:0.1s">
+        MCP <span class="gradient-text">Navigator</span>
+      </h1>
+
+      <p class="text-xl sm:text-2xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed animate-fadeInUp" style="animation-delay:0.2s">
+        最全面的 <strong class="text-gray-900 dark:text-white">MCP 服务器</strong>资源导航站，<br class="hidden sm:block"/>
+        收录 30+ 优质服务器，支持搜索与分类浏览
+      </p>
+
+      <!-- Search Box -->
+      <div class="max-w-2xl mx-auto animate-fadeInUp" style="animation-delay:0.3s">
+        <div class="relative group">
+          <div class="absolute -inset-0.5 bg-gradient-to-r from-primary-500 to-accent-500 rounded-2xl blur opacity-20 group-hover:opacity-40 transition-opacity"></div>
+          <div class="relative flex items-center bg-white dark:bg-[#111118] rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
+            <svg class="w-5 h-5 text-gray-400 ml-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input
+              id="searchInput"
+              type="text"
+              placeholder="搜索 MCP 服务器...（如 GitHub, Slack, 数据库）"
+              class="flex-1 bg-transparent px-4 py-4 text-base outline-none placeholder-gray-400 dark:placeholder-gray-600"
+              aria-label="搜索 MCP 服务器"
+              autocomplete="off"
+            />
+            <kbd class="hidden sm:inline-flex mr-4 text-xs text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-lg font-mono">⌘K</kbd>
+          </div>
+        </div>
+        <p id="searchHint" class="mt-3 text-sm text-gray-500 dark:text-gray-500 hidden"></p>
+      </div>
+
+      <!-- Stats -->
+      <div class="flex flex-wrap justify-center gap-8 mt-14 animate-fadeInUp" style="animation-delay:0.4s">
+        <div class="text-center">
+          <div class="text-3xl font-black gradient-text">30+</div>
+          <div class="text-sm text-gray-500 dark:text-gray-500 mt-1">收录服务器</div>
+        </div>
+        <div class="text-center">
+          <div class="text-3xl font-black gradient-text">8</div>
+          <div class="text-sm text-gray-500 dark:text-gray-500 mt-1">分类覆盖</div>
+        </div>
+        <div class="text-center">
+          <div class="text-3xl font-black gradient-text">免费</div>
+          <div class="text-sm text-gray-500 dark:text-gray-500 mt-1">开源共享</div>
+        </div>
+        <div class="text-center">
+          <div class="text-3xl font-black gradient-text">实时</div>
+          <div class="text-sm text-gray-500 dark:text-gray-500 mt-1">内容更新</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== ABOUT / WHAT IS MCP ========== -->
+  <section id="about" class="py-20 sm:py-28 bg-gray-50 dark:bg-[#0f0f16]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight mb-4">什么是 <span class="gradient-text">MCP</span>？</h2>
+        <p class="text-lg text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">Model Context Protocol（模型上下文协议）是由 Anthropic 提出的开放标准协议，让 AI 模型能够安全、标准化地与外部工具、数据源和_services交互。</p>
+      </div>
+
+      <div class="grid sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
+        <!-- Feature 1 -->
+        <div class="bg-white dark:bg-[#16161f] rounded-2xl p-8 text-center border border-gray-200 dark:border-gray-800 hover:border-primary-300 dark:hover:border-primary-700 transition-colors group">
+          <div class="w-14 h-14 rounded-2xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition-transform">
+            <svg class="w-7 h-7 text-primary-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+          <h3 class="font-bold text-lg mb-2">标准化接口</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">统一的协议规范，任何 MCP 兼容客户端都可以连接任何 MCP 服务器</p>
+        </div>
+        <!-- Feature 2 -->
+        <div class="bg-white dark:bg-[#16161f] rounded-2xl p-8 text-center border border-gray-200 dark:border-gray-800 hover:border-accent-300 dark:hover:border-accent-700 transition-colors group">
+          <div class="w-14 h-14 rounded-2xl bg-accent-100 dark:bg-accent-900/30 flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition-transform">
+            <svg class="w-7 h-7 text-accent-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          </div>
+          <h3 class="font-bold text-lg mb-2">安全隔离</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">本地运行，数据不外流；细粒度权限控制，保障隐私安全</p>
+        </div>
+        <!-- Feature 3 -->
+        <div class="bg-white dark:bg-[#16161f] rounded-2xl p-8 text-center border border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors group">
+          <div class="w-14 h-14 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition-transform">
+            <svg class="w-7 h-7 text-emerald-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+          </div>
+          <h3 class="font-bold text-lg mb-2">生态丰富</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">涵盖开发工具、数据库、云服务、通讯协作等各领域生态</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== QUICK START ========== -->
+  <section id="quickstart" class="py-20 sm:py-28">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight mb-4">🚀 快速开始</h2>
+        <p class="text-lg text-gray-600 dark:text-gray-400">只需 3 步，即可将 MCP 服务器接入你的 AI 工具</p>
+      </div>
+
+      <div class="max-w-4xl mx-auto">
+        <!-- Step 1 -->
+        <div class="relative pl-8 sm:pl-14 pb-12 group">
+          <div class="absolute left-0 sm:left-7 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary-500 via-accent-500 to-gray-200 dark:to-gray-700"></div>
+          <div class="absolute left-0 sm:left-4 top-0 w-7 h-7 rounded-full bg-primary-500 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-primary-500/30">1</div>
+          <div class="bg-white dark:bg-[#111118] rounded-2xl p-6 sm:p-8 border border-gray-200 dark:border-gray-800 ml-2">
+            <h3 class="font-bold text-lg mb-2">安装 Claude Desktop 或兼容客户端</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">MCP 协议被 Claude Desktop、Cursor、Windsurf 等主流 AI 工具原生支持</p>
+            <div class="bg-gray-900 dark:bg-black rounded-xl p-4 text-sm font-mono text-green-400 overflow-x-auto">
+              <span class="text-gray-500"># macOS (Homebrew)</span><br/>
+              brew install --cask claude
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="relative pl-8 sm:pl-14 pb-12 group">
+          <div class="absolute left-0 sm:left-7 top-0 bottom-0 w-0.5 bg-gradient-to-b from-accent-500 to-gray-200 dark:to-gray-700"></div>
+          <div class="absolute left-0 sm:left-4 top-0 w-7 h-7 rounded-full bg-accent-500 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-accent-500/30">2</div>
+          <div class="bg-white dark:bg-[#111118] rounded-2xl p-6 sm:p-8 border border-gray-200 dark:border-gray-800 ml-2">
+            <h3 class="font-bold text-lg mb-2">配置 MCP 服务器</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">在 Claude Desktop 设置中添加服务器配置（以 GitHub 为例）</p>
+            <div class="bg-gray-900 dark:bg-black rounded-xl p-4 text-sm font-mono text-green-400 overflow-x-auto">
+<span class="text-gray-500"># ~/.claude.json (macOS) 或 %APPDATA%\Claude\claude_desktop_config.json (Windows)</span><br/>
+{
+  <span class="text-blue-400">"mcpServers"</span>: {
+    <span class="text-blue-400">"github"</span>: {
+      <span class="text-blue-400">"command"</span>: <span class="text-amber-400">"npx"</span>,
+      <span class="text-blue-400">"args"</span>: [<span class="text-amber-400">"-y"</span>, <span class="text-amber-400">"@modelcontextprotocol/server-github"</span>]
+    }
+  }
+}
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="relative pl-8 sm:pl-14 group">
+          <div class="absolute left-0 sm:left-4 top-0 w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white text-sm font-bold shadow-lg shadow-emerald-500/30">3</div>
+          <div class="bg-white dark:bg-[#111118] rounded-2xl p-6 sm:p-8 border border-gray-200 dark:border-gray-800 ml-2">
+            <h3 class="font-bold text-lg mb-2">开始使用！</h3>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">重启客户端后，直接用自然语言让 AI 调用 MCP 工具完成复杂任务</p>
+            <div class="bg-gray-100 dark:bg-gray-800/50 rounded-xl p-4 text-sm">
+              <div class="text-gray-500 dark:text-gray-400 mb-2">💬 示例对话</div>
+              <p class="text-gray-700 dark:text-gray-300 italic">"帮我查看最近的 5 个 Issue，并把还没分配的分配给我"</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== MCP SERVERS LIST ========== -->
+  <section id="servers" class="py-20 sm:py-28 bg-gray-50 dark:bg-[#0f0f16]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+      <div class="text-center mb-12">
+        <h2 class="text-3xl sm:text-4xl font-bold tracking-tight mb-4">📦 MCP 服务器列表</h2>
+        <p class="text-lg text-gray-600 dark:text-gray-400">点击分类快速浏览，或使用上方搜索框精确查找</p>
+      </div>
+
+      <!-- Category Tabs -->
+      <div class="flex flex-wrap justify-center gap-2 mb-10 sticky top-16 z-40 bg-gray-50 dark:bg-[#0f0f16] py-4 -mx-4 px-4">
+        <button class="tab-btn active px-4 py-2 rounded-full text-sm font-medium transition-colors bg-white dark:bg-[#16161f] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-400" data-category="all">
+          🏠 全部
+        </button>
+        <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium transition-colors bg-white dark:bg-[#16161f] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-400" data-category="dev">
+          🐙 开发 & 代码
+        </button>
+        <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium transition-colors bg-white dark:bg-[#16161f] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-400" data-category="ai">
+          🤖 AI & 搜索
+        </button>
+        <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium transition-colors bg-white dark:bg-[#16161f] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-400" data-category="collab">
+          💬 协作 & 通讯
+        </button>
+        <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium transition-colors bg-white dark:bg-[#16161f] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-400" data-category="data">
+          📊 数据 & 分析
+        </button>
+        <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium transition-colors bg-white dark:bg-[#16161f] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-400" data-category="cloud">
+          🌐 云服务
+        </button>
+        <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium transition-colors bg-white dark:bg-[#16161f] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-400" data-category="crypto">
+          💰 加密 & 金融
+        </button>
+        <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium transition-colors bg-white dark:bg-[#16161f] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-400" data-category="creative">
+          🎨 创意 & 媒体
+        </button>
+        <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium transition-colors bg-white dark:bg-[#16161f] border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-400" data-category="util">
+          🔧 实用工具
+        </button>
+      </div>
+
+      <!-- No results -->
+      <div id="noResults" class="hidden text-center py-20">
+        <div class="text-6xl mb-4">🔍</div>
+        <h3 class="text-xl font-bold mb-2">没有找到匹配结果</h3>
+        <p class="text-gray-500 dark:text-gray-400">换个关键词试试，或切换分类浏览</p>
+      </div>
+
+      <!-- Servers Grid -->
+      <div id="serversGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Cards injected by JS -->
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ========== MCP CLIENTS SHOWCASE ========== -->
+  <section class="py-20 sm:py-24">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl font-bold tracking-tight mb-4">⚡ 支持 MCP 的客户端</h2>
+        <p class="text-gray-600 dark:text-gray-400">以下客户端已原生支持 MCP 协议，即装即用</p>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 max-w-3xl mx-auto">
+        <div class="bg-white dark:bg-[#111118] rounded-xl p-4 text-center border border-gray-200 dark:border-gray-800 hover:border-primary-400 transition-colors">
+          <div class="text-3xl mb-2">🧠</div>
+          <div class="text-sm font-medium">Claude Desktop</div>
+          <div class="text-xs text-gray-500 mt-1">Anthropic</div>
+        </div>
+        <div class="bg-white dark:bg-[#111118] rounded-xl p-4 text-center border border-gray-200 dark:border-gray-800 hover:border-primary-400 transition-colors">
+          <div class="text-3xl mb-2">🖱️</div>
+          <div class="text-sm font-medium">Cursor</div>
+          <div class="text-xs text-gray-500 mt-1">AI IDE</div>
+        </div>
+        <div class="bg-white dark:bg-[#111118] rounded-xl p-4 text-center border border-gray-200 dark:border-gray-800 hover:border-primary-400 transition-colors">
+          <div class="text-3xl mb-2">🌊</div>
+          <div class="text-sm font-medium">Windsurf</div>
+          <div class="text-xs text-gray-500 mt-1">Codeium</div>
+        </div>
+        <div class="bg-white dark:bg-[#111118] rounded-xl p-4 text-center border border-gray-200 dark:border-gray-800 hover:border-primary-400 transition-colors">
+          <div class="text-3xl mb-2">💻</div>
+          <div class="text-sm font-medium">VS Code</div>
+          <div class="text-xs text-gray-500 mt-1">+ Copilot</div>
+        </div>
+        <div class="bg-white dark:bg-[#111118] rounded-xl p-4 text-center border border-gray-200 dark:border-gray-800 hover:border-primary-400 transition-colors">
+          <div class="text-3xl mb-2">🔌</div>
+          <div class="text-sm font-medium">Zed</div>
+          <div class="text-xs text-gray-500 mt-1">zed.dev</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== CONTRIBUTE ========== -->
+  <section id="contribute" class="py-20 sm:py-28 bg-gray-50 dark:bg-[#0f0f16]">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center mx-auto mb-8 text-white text-2xl">
+        🤝
+      </div>
+      <h2 class="text-3xl sm:text-4xl font-bold tracking-tight mb-4">欢迎贡献</h2>
+      <p class="text-lg text-gray-600 dark:text-gray-400 mb-10 max-w-2xl mx-auto">
+        MCP 生态正在快速发展，欢迎提交新的服务器、维护文档或分享使用经验。
+      </p>
+
+      <div class="grid sm:grid-cols-3 gap-5 mb-10">
+        <div class="bg-white dark:bg-[#111118] rounded-2xl p-6 border border-gray-200 dark:border-gray-800 text-left">
+          <div class="text-2xl mb-3">🐛</div>
+          <h3 class="font-bold mb-2">报告问题</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">发现链接失效或内容有误？请提交 Issue 帮助我们完善</p>
+        </div>
+        <div class="bg-white dark:bg-[#111118] rounded-2xl p-6 border border-gray-200 dark:border-gray-800 text-left">
+          <div class="text-2xl mb-3">✨</div>
+          <h3 class="font-bold mb-2">推荐新服务器</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">有优质的 MCP 服务器想推荐？提交 Pull Request 加入列表</p>
+        </div>
+        <div class="bg-white dark:bg-[#111118] rounded-2xl p-6 border border-gray-200 dark:border-gray-800 text-left">
+          <div class="text-2xl mb-3">📖</div>
+          <h3 class="font-bold mb-2">完善文档</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400">帮助改善安装说明、使用文档，让更多人受益</p>
+        </div>
+      </div>
+
+      <a href="https://github.com" target="_blank" rel="noopener" class="inline-flex items-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-semibold px-8 py-4 rounded-xl hover:opacity-90 transition-opacity">
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+        在 GitHub 上贡献
+      </a>
+    </div>
+  </section>
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0a0a0f]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="grid sm:grid-cols-3 gap-8 mb-8">
+        <!-- Brand -->
+        <div>
+          <div class="flex items-center gap-2 mb-4">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center text-white font-bold">M</div>
+            <span class="font-bold">MCP Navigator</span>
+          </div>
+          <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">最全面的 MCP 服务器资源导航站，助力开发者快速接入 AI 能力。</p>
+        </div>
+
+        <!-- Links -->
+        <div>
+          <h4 class="font-semibold mb-4">相关资源</h4>
+          <ul class="space-y-2 text-sm">
+            <li><a href="https://modelcontextprotocol.io" target="_blank" rel="noopener" class="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">📘 MCP 官方文档</a></li>
+            <li><a href="https://github.com/modelcontextprotocol" target="_blank" rel="noopener" class="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">💻 GitHub 组织</a></li>
+            <li><a href="https://smithery.ai" target="_blank" rel="noopener" class="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">🔌 Smithery (MCP 市场)</a></li>
+            <li><a href="https://glama.ai" target="_blank" rel="noopener" class="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">📊 Glama (MCP 目录)</a></li>
+          </ul>
+        </div>
+
+        <!-- Protocols -->
+        <div>
+          <h4 class="font-semibold mb-4">协议说明</h4>
+          <ul class="space-y-2 text-sm">
+            <li><a href="https://modelcontextprotocol.io/specification" target="_blank" rel="noopener" class="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">📋 MCP 规范</a></li>
+            <li><a href="https://modelcontextprotocol.io/docs" target="_blank" rel="noopener" class="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">📖 开发者指南</a></li>
+            <li><a href="https://modelcontextprotocol.io/sdk" target="_blank" rel="noopener" class="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">🛠️ SDK & 工具</a></li>
+            <li><a href="https://github.com/modelcontextprotocol/specification/discussions" target="_blank" rel="noopener" class="text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors">💬 社区讨论</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="border-t border-gray-200 dark:border-gray-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500 dark:text-gray-400">
+        <p>© 2026 MCP Navigator · 基于 Model Context Protocol 构建 · 开源共享</p>
+        <div class="flex items-center gap-4">
+          <a href="https://github.com" target="_blank" rel="noopener" class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+          </a>
+          <a href="https://twitter.com" target="_blank" rel="noopener" class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========== SCRIPTS ========== -->
+  <script>
+    // ── MCP Servers Data ──
+    const servers = [
+      // 🐙 开发 & 代码
+      {
+        category: 'dev',
+        icon: '📁',
+        name: 'filesystem',
+        description: '本地文件系统读写、搜索与命令执行。支持读取、写入、搜索、批量操作等完整文件系统功能',
+        install: 'npx -y @modelcontextprotocol/server-filesystem /path/to/directory',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem',
+        tags: ['文件系统', 'I/O', '本地']
+      },
+      {
+        category: 'dev',
+        icon: '🐙',
+        name: 'GitHub',
+        description: 'Issue、PR、代码库与 Gist 管理。支持创建Issue、评论、合并PR、管理仓库等完整操作',
+        install: 'npx -y @modelcontextprotocol/server-github',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/github',
+        tags: ['GitHub', '代码', '协作']
+      },
+      {
+        category: 'dev',
+        icon: '🦊',
+        name: 'GitLab',
+        description: 'GitLab 项目、Merge Request、CI/CD 与标签管理。支持项目列表、MR 审查、流水线查看',
+        install: 'npx -y @modelcontextprotocol/server-gitlab',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/gitlab',
+        tags: ['GitLab', 'CI/CD', 'DevOps']
+      },
+      {
+        category: 'dev',
+        icon: '🐳',
+        name: 'Docker',
+        description: 'Docker 容器管理：启动、停止、查看日志、构建镜像等操作，无需命令行即可管理容器',
+        install: 'npx -y @modelcontextprotocol/server-docker',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/docker',
+        tags: ['Docker', '容器', 'DevOps']
+      },
+      {
+        category: 'dev',
+        icon: '☸️',
+        name: 'Kubernetes (k8s)',
+        description: 'Kubernetes 集群管理：Pods、Services、Deployments、Jobs、ConfigMaps 的查看与操作',
+        install: 'npx -y @modelcontextprotocol/server-kubernetes',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/kubernetes',
+        tags: ['K8s', '集群', '云原生']
+      },
+      {
+        category: 'dev',
+        icon: '🐘',
+        name: 'PostgreSQL',
+        description: 'PostgreSQL 数据库查询与操作。支持 SQL 执行、表结构查看、数据分析与数据库管理',
+        install: 'npx -y @modelcontextprotocol/server-postgres',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/postgres',
+        tags: ['数据库', 'SQL', 'PostgreSQL']
+      },
+      {
+        category: 'dev',
+        icon: '🔴',
+        name: 'Redis',
+        description: 'Redis 缓存数据库管理。Key/Value 操作、Hash、List、Pub/Sub、缓存读写与监控',
+        install: 'npx -y @modelcontextprotocol/server-redis',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/redis',
+        tags: ['Redis', '缓存', 'NoSQL']
+      },
+      {
+        category: 'dev',
+        icon: '🍃',
+        name: 'MongoDB',
+        description: 'MongoDB NoSQL 数据库操作。集合查询、文档增删改、聚合管道与索引管理',
+        install: 'npx -y @modelcontextprotocol/server-mongodb',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/mongodb',
+        tags: ['MongoDB', 'NoSQL', '文档数据库']
+      },
+
+      // 🤖 AI & 搜索
+      {
+        category: 'ai',
+        icon: '🦁',
+        name: 'Brave Search',
+        description: '网络搜索功能。提供真实、实时的网页搜索结果，保护隐私不追踪用户数据',
+        install: 'npx -y @modelcontextprotocol/server-brave-search',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/brave-search',
+        tags: ['搜索', '网络', 'Brave']
+      },
+      {
+        category: 'ai',
+        icon: '📚',
+        name: 'Wikipedia',
+        description: '维基百科知识查询。搜索词条、获取摘要、相关链接与多媒体内容',
+        install: 'npx -y @modelcontextprotocol/server-wikipedia',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/wikipedia',
+        tags: ['百科', '知识', 'Wikipedia']
+      },
+      {
+        category: 'ai',
+        icon: '📄',
+        name: 'ArXiv',
+        description: '学术论文搜索。检索 ArXiv 预印本数据库，获取论文摘要、PDF 链接与引用信息',
+        install: 'npx -y @modelcontextprotocol/server-arxiv',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/arxiv',
+        tags: ['学术', '论文', 'AI研究']
+      },
+      {
+        category: 'ai',
+        icon: '🌐',
+        name: 'Fetch',
+        description: '网页内容抓取与解析。获取任意 URL 的 HTML 内容，支持提取特定 DOM 元素',
+        install: 'npx -y @modelcontextprotocol/server-fetch',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/fetch',
+        tags: ['抓取', 'HTTP', '网页']
+      },
+      {
+        category: 'ai',
+        icon: '🎭',
+        name: 'Puppeteer',
+        description: '浏览器自动化控制。执行 JavaScript、截取网页截图、表单填写与复杂交互',
+        install: 'npx -y @modelcontextprotocol/server-puppeteer',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/puppeteer',
+        tags: ['浏览器', '自动化', '爬虫']
+      },
+
+      // 💬 协作 & 通讯
+      {
+        category: 'collab',
+        icon: '💬',
+        name: 'Slack',
+        description: 'Slack 消息与频道管理。发送消息、创建频道、搜索历史、文件上传与成员管理',
+        install: 'npx -y @modelcontextprotocol/server-slack',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/slack',
+        tags: ['Slack', '团队', '消息']
+      },
+      {
+        category: 'collab',
+        icon: '🎮',
+        name: 'Discord',
+        description: 'Discord 服务器与消息管理。发送消息、查询频道、管理成员与 Webhook 交互',
+        install: 'npx -y @modelcontextprotocol/server-discord',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/discord',
+        tags: ['Discord', '社区', '消息']
+      },
+      {
+        category: 'collab',
+        icon: '📧',
+        name: 'Gmail',
+        description: 'Gmail 邮件读写与管理。发送邮件、搜索收件箱、标记已读、起草回复与标签管理',
+        install: 'npx -y @modelcontextprotocol/server-gmail',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/gmail',
+        tags: ['Gmail', '邮件', 'Google']
+      },
+      {
+        category: 'collab',
+        icon: '📝',
+        name: 'Notion',
+        description: 'Notion 笔记与数据库操作。读写页面、管理数据库、同步笔记与内容搜索',
+        install: 'npx -y @modelcontextprotocol/server-notion',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/notion',
+        tags: ['Notion', '笔记', '协作']
+      },
+      {
+        category: 'collab',
+        icon: '📊',
+        name: 'Linear',
+        description: 'Linear 项目管理。创建Issue、管理Sprint、追踪里程碑与团队协作',
+        install: 'npx -y @modelcontextprotocol/server-linear',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/linear',
+        tags: ['Linear', '项目管理', '敏捷']
+      },
+
+      // 📊 数据 & 分析
+      {
+        category: 'data',
+        icon: '🚨',
+        name: 'Sentry',
+        description: 'Sentry 错误追踪与监控。查看错误事件、堆栈跟踪、性能问题与用户影响范围',
+        install: 'npx -y @modelcontextprotocol/server-sentry',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/sentry',
+        tags: ['Sentry', '监控', 'DevOps']
+      },
+      {
+        category: 'data',
+        icon: '☁️',
+        name: 'AWS KB Retrieval',
+        description: 'AWS 知识库检索。基于 Amazon Kendra 或 Bedrock Knowledge Base 检索企业知识',
+        install: 'pip install mcp-server-aws-kb',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/aws-kb-retrieval',
+        tags: ['AWS', '知识库', 'AI']
+      },
+      {
+        category: 'data',
+        icon: '📈',
+        name: 'Google Analytics',
+        description: 'Google Analytics 网站数据分析。获取访问量、用户行为、转化率与实时数据',
+        install: 'npx -y @modelcontextprotocol/server-google-analytics',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/google-analytics',
+        tags: ['GA4', '分析', '数据']
+      },
+
+      // 🌐 云服务
+      {
+        category: 'cloud',
+        icon: '⛅',
+        name: 'Cloudflare',
+        description: 'Cloudflare DNS、CDN、Workers 与安全规则管理。配置域名、查看流量、分析日志',
+        install: 'npx -y @modelcontextprotocol/server-cloudflare',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/cloudflare',
+        tags: ['Cloudflare', 'CDN', 'DNS']
+      },
+      {
+        category: 'cloud',
+        icon: '🌐',
+        name: 'Fetch (HTTP)',
+        description: '通用 HTTP 请求工具。发送 REST API 请求、调试接口、测试 Webhook',
+        install: 'npx -y @modelcontextprotocol/server-fetch',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/fetch',
+        tags: ['HTTP', 'API', '调试']
+      },
+
+      // 💰 加密 & 金融
+      {
+        category: 'crypto',
+        icon: '🚪',
+        name: 'Gate MCP',
+        description: 'Gate.io 交易所 MCP 服务。提供 gate-info（行情/资产）、gate-cex-pub（公开数据）、gate-news（新闻/公告）、gate-analysis（技术分析）等多个子服务',
+        install: 'npx -y @anthropic-ai/gate-mcp-server',
+        doc: 'https://github.com/gateio/gate-mcp',
+        tags: ['Gate', 'CEX', '加密货币']
+      },
+      {
+        category: 'crypto',
+        icon: '🦄',
+        name: 'Uniswap',
+        description: 'Uniswap DEX 数据与 Swap 操作。查询代币价格、流动性池、交易对与兑换汇率',
+        install: 'npx -y @modelcontextprotocol/server-uniswap',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/uniswap',
+        tags: ['Uniswap', 'DEX', 'DeFi']
+      },
+
+      // 🎨 创意 & 媒体
+      {
+        category: 'creative',
+        icon: '🎨',
+        name: 'Image Generation',
+        description: 'AI 图片生成服务。集成 DALL·E、Stable Diffusion、Midjourney 等主流绘图模型',
+        install: 'npx -y @modelcontextprotocol/server-image-generation',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/image-generation',
+        tags: ['AI绘图', 'DALL·E', '创意']
+      },
+      {
+        category: 'creative',
+        icon: '🎬',
+        name: 'FFmpeg',
+        description: 'FFmpeg 音视频处理。格式转换、剪辑、压缩、水印、提取音频等多媒体操作',
+        install: 'npx -y @modelcontextprotocol/server-ffmpeg',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/ffmpeg',
+        tags: ['FFmpeg', '视频', '音频']
+      },
+
+      // 🔧 实用工具
+      {
+        category: 'util',
+        icon: '✅',
+        name: 'Todoist',
+        description: 'Todoist 任务管理。创建任务、设置截止日期、管理项目、同步待办清单',
+        install: 'npx -y @modelcontextprotocol/server-todoist',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/todoist',
+        tags: ['Todoist', '任务', '待办']
+      },
+      {
+        category: 'util',
+        icon: '📅',
+        name: 'Google Calendar',
+        description: 'Google 日历管理。查看日程、创建事件、设置提醒、管理多日历与参会者',
+        install: 'npx -y @modelcontextprotocol/server-google-calendar',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/google-calendar',
+        tags: ['日历', 'Google', '日程']
+      },
+      {
+        category: 'util',
+        icon: '🗺️',
+        name: 'Maps',
+        description: '地图与位置服务。集成 Google Maps、Mapbox 等提供地点搜索、路线规划、地理编码',
+        install: 'npx -y @modelcontextprotocol/server-maps',
+        doc: 'https://github.com/modelcontextprotocol/servers/tree/main/src/maps',
+        tags: ['地图', '位置', '导航']
+      },
+    ];
+
+    // ── Category badge colors ──
+    const categoryColors = {
+      dev:    { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-300', border: 'border-blue-200 dark:border-blue-800' },
+      ai:     { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-300', border: 'border-purple-200 dark:border-purple-800' },
+      collab: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-300', border: 'border-green-200 dark:border-green-800' },
+      data:   { bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-200 dark:border-orange-800' },
+      cloud:  { bg: 'bg-sky-100 dark:bg-sky-900/30', text: 'text-sky-700 dark:text-sky-300', border: 'border-sky-200 dark:border-sky-800' },
+      crypto: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300', border: 'border-amber-200 dark:border-amber-800' },
+      creative:{ bg: 'bg-pink-100 dark:bg-pink-900/30', text: 'text-pink-700 dark:text-pink-300', border: 'border-pink-200 dark:border-pink-800' },
+      util:   { bg: 'bg-gray-100 dark:bg-gray-800/50', text: 'text-gray-700 dark:text-gray-300', border: 'border-gray-200 dark:border-gray-700' },
+    };
+
+    const categoryLabels = {
+      dev: '🐙 开发 & 代码', ai: '🤖 AI & 搜索', collab: '💬 协作 & 通讯',
+      data: '📊 数据 & 分析', cloud: '🌐 云服务', crypto: '💰 加密 & 金融',
+      creative: '🎨 创意 & 媒体', util: '🔧 实用工具'
+    };
+
+    // ── Render cards ──
+    function renderCards(filterCategory = 'all', searchQuery = '') {
+      const grid = document.getElementById('serversGrid');
+      const noResults = document.getElementById('noResults');
+
+      const q = searchQuery.toLowerCase().trim();
+
+      let filtered = servers.filter(s => {
+        const catMatch = filterCategory === 'all' || s.category === filterCategory;
+        if (!q) return catMatch;
+        const searchText = [s.name, s.description, ...(s.tags || [])].join(' ').toLowerCase();
+        return catMatch && searchText.includes(q);
+      });
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '';
+        noResults.classList.remove('hidden');
+        return;
+      }
+      noResults.classList.add('hidden');
+
+      grid.innerHTML = filtered.map((s, i) => {
+        const col = categoryColors[s.category] || categoryColors.util;
+        const catLabel = categoryLabels[s.category] || s.category;
+        return `
+        <article class="mcp-card bg-white dark:bg-[#111118] rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col opacity-0 animate-fadeInUp" style="animation-delay:${(i % 12) * 0.05}s" data-name="${s.name.toLowerCase()}" data-desc="${s.description.toLowerCase()}" data-tags="${(s.tags||[]).join(' ').toLowerCase()}">
+
+          <!-- Card header -->
+          <div class="p-5 flex items-start gap-3 flex-1">
+            <div class="w-11 h-11 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-2xl shrink-0">${s.icon}</div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap mb-1">
+                <h3 class="font-bold text-base truncate">${s.name}</h3>
+                <span class="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full border ${col.bg} ${col.text} ${col.border} shrink-0">${catLabel}</span>
+              </div>
+              <p class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-3">${s.description}</p>
+            </div>
+          </div>
+
+          <!-- Tags -->
+          ${s.tags && s.tags.length ? `<div class="px-5 flex flex-wrap gap-1.5 mb-3">${s.tags.map(t => `<span class="text-xs px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">#${t}</span>`).join('')}</div>` : ''}
+
+          <!-- Install command -->
+          <div class="px-5 mb-3">
+            <div class="bg-gray-50 dark:bg-black/40 rounded-xl p-3 text-xs font-mono text-gray-700 dark:text-gray-300 break-all leading-relaxed">
+              <span class="text-gray-400 dark:text-gray-600 select-none">$ </span>${s.install}
+            </div>
+          </div>
+
+          <!-- Card footer -->
+          <div class="px-5 pb-5 flex items-center gap-3 mt-auto pt-1">
+            <a href="${s.doc}" target="_blank" rel="noopener" class="flex-1 inline-flex items-center justify-center gap-1.5 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 text-sm font-medium px-4 py-2 rounded-xl hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>
+              官方文档
+            </a>
+            <a href="${s.doc}" target="_blank" rel="noopener" class="inline-flex items-center justify-center gap-1.5 text-gray-500 dark:text-gray-400 text-sm px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 transition-colors" aria-label="GitHub 链接">
+              <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+            </a>
+          </div>
+        </article>`;
+      }).join('');
+    }
+
+    // ── Search ──
+    let currentCategory = 'all';
+    let currentSearch = '';
+    let searchTimeout;
+
+    const searchInput = document.getElementById('searchInput');
+    const searchHint = document.getElementById('searchHint');
+
+    searchInput.addEventListener('input', (e) => {
+      currentSearch = e.target.value;
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        renderCards(currentCategory, currentSearch);
+        if (currentSearch.trim()) {
+          const count = document.querySelectorAll('#serversGrid article').length;
+          searchHint.textContent = `找到 ${count} 个匹配的服务器`;
+          searchHint.classList.remove('hidden');
+        } else {
+          searchHint.classList.add('hidden');
+        }
+      }, 150);
+    });
+
+    // Keyboard shortcut ⌘K
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInput.focus();
+        searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+
+    // ── Category Tabs ──
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentCategory = btn.dataset.category;
+        renderCards(currentCategory, currentSearch);
+      });
+    });
+
+    // ── Theme Toggle ──
+    const themeToggle = document.getElementById('themeToggle');
+    const html = document.documentElement;
+
+    // Init theme
+    if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      html.classList.add('dark');
+    }
+
+    themeToggle.addEventListener('click', () => {
+      html.classList.toggle('dark');
+      localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+    });
+
+    // ── Mobile Menu ──
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const mobileMenu = document.getElementById('mobileMenu');
+
+    mobileMenuBtn.addEventListener('click', () => {
+      const isOpen = mobileMenu.classList.toggle('open');
+      mobileMenuBtn.setAttribute('aria-expanded', isOpen);
+    });
+
+    // Close mobile menu on link click
+    mobileMenu.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', () => {
+        mobileMenu.classList.remove('open');
+        mobileMenuBtn.setAttribute('aria-expanded', 'false');
+      });
+    });
+
+    // ── Smooth scroll for anchor links ──
+    document.querySelectorAll('a[href^="#"]').forEach(link => {
+      link.addEventListener('click', (e) => {
+        const target = document.querySelector(link.getAttribute('href'));
+        if (target) {
+          e.preventDefault();
+          const offset = 72; // header height
+          const top = target.getBoundingClientRect().top + window.scrollY - offset;
+          window.scrollTo({ top, behavior: 'smooth' });
+        }
+      });
+    });
+
+    // ── Initial render ──
+    renderCards('all', '');
+  </script>
+
+</body>
+</html>
